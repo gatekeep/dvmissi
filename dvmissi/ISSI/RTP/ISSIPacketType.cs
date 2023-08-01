@@ -149,7 +149,7 @@ namespace dvmissi.ISSI.RTP
         }
 
         /// <summary>
-        /// Encode a RTP header.
+        /// Encode a block.
         /// </summary>
         /// <param name="data"></param>
         public void Encode(ref byte[] data)
