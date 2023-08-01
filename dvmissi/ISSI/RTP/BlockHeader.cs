@@ -141,10 +141,10 @@ namespace dvmissi.ISSI.RTP
 
             ulong value = 0;
 
-            value = (ulong)((PayloadType ? 0x80 : 0x00) +                       // Payload Type
-                ((byte)Type & 0x7F));                                           // Block Type
-            value = (value << 24) + (ulong)(TimestampOffset & 0x3FF);           // Timestamp Offset
-            value = (value << 10) + (ulong)(BlockLength & 0x3FF);               // Block Length
+            value = (ulong)((PayloadType ? 0x80U : 0x00U) +                     // Payload Type
+                ((byte)Type & 0x7FU));                                          // Block Type
+            value = (value << 24) + (ulong)(TimestampOffset & 0x3FFU);          // Timestamp Offset
+            value = (value << 10) + (ulong)(BlockLength & 0x3FFU);              // Block Length
 
             // split ulong (8 byte) value into bytes
             data[0U] = (byte)((value >> 24) & 0xFFU);
