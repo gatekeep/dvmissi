@@ -157,6 +157,8 @@ namespace dvmissi.ISSI.RTP
             if (imbe == null)
                 return;
 
+            ResetVectors();
+
             MessageVectors[0] = (ushort)((imbe[0] << 4) + ((imbe[1] & 0xF0U) >> 4));
             MessageVectors[1] = (ushort)(((imbe[1] & 0x0FU) << 8) + (imbe[2]));
             MessageVectors[2] = (ushort)((imbe[3] << 4) + ((imbe[4] & 0xF0U) >> 4));
