@@ -49,8 +49,16 @@ namespace dvmissi.ISSI.RTP
     /// <summary>
     /// Implements a P25 block header packet.
     /// </summary>
+    /// 
+    /// Byte 0                   1                   2                   3   
+    /// Bit  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |E|      BT     |             TSO           |         BL        |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     public class BlockHeader
     {
+        public const int LENGTH = 4;
+
         /// <summary>
         /// Payload type.
         /// </summary>
@@ -102,6 +110,14 @@ namespace dvmissi.ISSI.RTP
             Type = BlockType.UNDEFINED;
             TimestampOffset = 0;
             BlockLength = 0;
+        }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BlockHeader"/> class.
+        /// </summary>
+        /// <param name="data"></param>
+        public BlockHeader(byte[] data) : this()
+        {
+            Decode(data);
         }
 
         /// <summary>

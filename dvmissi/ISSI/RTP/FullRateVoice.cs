@@ -29,6 +29,22 @@ namespace dvmissi.ISSI.RTP
     /// <summary>
     /// Implements a P25 full rate voice packet.
     /// </summary>
+    /// 
+    /// Byte 0                   1                   2                   3
+    /// Bit  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |       FT      |       U0(b11-0)       |      U1(b11-0)        |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |        U2(b10-0)      |      U3(b11-0)        |   U4(b10-3)   |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |  U4 |     U5(b10-0)       |     U6(b10-0)       |  U7(b6-0)   |
+    ///     +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+    ///     |  Et | Er  |M|L|E|  E1 |SF |rs | Additional Frame Type Specific|
+    ///     |     |     | | |4|     |   |vd | Data(variable length)         |
+    ///     +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+    ///     |             Additional Frame Type Specific Data               |
+    ///     |                        (variable length)                      |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     public class FullRateVoice
     {
         private const int IMBE_BUF_LEN = 11;
@@ -112,6 +128,14 @@ namespace dvmissi.ISSI.RTP
             AdditionalFrameData = null;
 
             ResetVectors();
+        }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FullRateVoice"/> class.
+        /// </summary>
+        /// <param name="data"></param>
+        public FullRateVoice(byte[] data) : this()
+        {
+            Decode(data);
         }
 
         /// <summary>

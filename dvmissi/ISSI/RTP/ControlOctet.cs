@@ -27,8 +27,16 @@ namespace dvmissi.ISSI.RTP
     /// <summary>
     /// Implements a P25 control octet packet.
     /// </summary>
+    /// 
+    /// Byte 0
+    /// Bit  0 1 2 3 4 5 6 7
+    ///     +-+-+-+-+-+-+-+-+
+    ///     |S|C|   BHC     |
+    ///     +-+-+-+-+-+-+-+-+
     public class ControlOctet
     {
+        public const int LENGTH = 1;
+
         /// <summary>
         /// 
         /// </summary>
@@ -67,6 +75,14 @@ namespace dvmissi.ISSI.RTP
             Signal = false;
             Compact = false;
             BlockHeaderCount = 0;
+        }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ControlOctet"/> class.
+        /// </summary>
+        /// <param name="data"></param>
+        public ControlOctet(byte[] data) : this()
+        {
+            Decode(data);
         }
 
         /// <summary>

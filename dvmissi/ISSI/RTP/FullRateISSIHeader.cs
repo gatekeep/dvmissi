@@ -30,8 +30,22 @@ namespace dvmissi.ISSI.RTP
     /// <summary>
     /// Implements a P25 full rate ISSI header packet.
     /// </summary>
+    /// 
+    /// Byte 0                   1                   2                   3
+    /// Bit  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |                   Message Indicator(72 bits)                  |
+    ///     |                                                               |
+    ///     +               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |               |     AlgID     |           Key ID              |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |     MFID      |            Group ID           |   NID(15-8)   |
+    ///     +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+    ///     |   NID(7-0)    |SF |VBB| Rsvd  |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     public class FullRateISSIHeader
     {
+        public const int LENGTH = 18;
         private const int MI_BUF_LEN = 9;
 
         /// <summary>
@@ -88,6 +102,15 @@ namespace dvmissi.ISSI.RTP
             set;
         }
 
+        /// <summary>
+        /// Count of voice blocks contained in each voice-bearing packet.
+        /// </summary>
+        public byte VoiceBlockBundling
+        {
+            get;
+            set;
+        }
+
         /*
         ** Methods
         */
@@ -102,6 +125,14 @@ namespace dvmissi.ISSI.RTP
             AlgorithmId = P25Defines.P25_ALGO_UNENCRYPT;
             KeyId = 0;
             MessageIndicator = new byte[MI_BUF_LEN];
+        }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FullRateISSIHeader"/> class.
+        /// </summary>
+        /// <param name="data"></param>
+        public FullRateISSIHeader(byte[] data) : this()
+        {
+            Decode(data);
         }
 
         /// <summary>
@@ -122,6 +153,9 @@ namespace dvmissi.ISSI.RTP
             GroupId = FneUtils.ToUInt16(data, 14);
             NID = FneUtils.ToUInt16(data, 16);
 
+            byte sfReserved = data[18];
+            VoiceBlockBundling = (byte)((sfReserved & 0x3F) >> 4);
+
             return true;
         }
 
@@ -140,6 +174,7 @@ namespace dvmissi.ISSI.RTP
             data[13U] = MFId;
             FneUtils.WriteBytes(GroupId, ref data, 14);
             FneUtils.WriteBytes(NID, ref data, 16);
+            data[18U] |= (byte)(VoiceBlockBundling << 4);
         }
     } // public class FullRateISSIHeader
 } // namespace dvmissi.ISSI.RTP

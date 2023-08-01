@@ -47,8 +47,16 @@ namespace dvmissi.ISSI.RTP
     /// <summary>
     /// Implements a P25 ISSI packet type packet.
     /// </summary>
+    /// 
+    /// Byte 0                   1                   2                   3
+    /// Bit  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    ///     |M|     PT      |       SO      |    TSN      |L|   Interval    |
+    ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     public class ISSIPacketType
     {
+        public const int LENGTH = 4;
+
         /// <summary>
         /// Flag indicating the frame should be muted.
         /// </summary>
@@ -118,6 +126,14 @@ namespace dvmissi.ISSI.RTP
             TSN = 0;
             Interval = 0;
         }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ISSIPacketType"/> class.
+        /// </summary>
+        /// <param name="data"></param>
+        public ISSIPacketType(byte[] data)
+        {
+            Decode(data);
+        }
 
         /// <summary>
         /// Decode a block.
@@ -131,19 +147,18 @@ namespace dvmissi.ISSI.RTP
 
             ulong value = 0U;
 
-            MuteFrame = ((value >> 24) & 0x80U) == 0x80U;                       // Mute Frame Flag
-            LostFrame = ((value >> 8) & 0x01U) == 0x01U;                        // Lost Frame Flag
-            Type = (PacketType)((value >> 24) & 0x7FU);                         // Packet Type
-            ServiceOptions = (byte)((value >> 16) & 0xFFU);                     // Service Options
-            TSN = (byte)((value >> 9) & 0x7FU);                                 // Transmission Sequence Number
-            Interval = (byte)(value & 0xFFU);                                   // Interval
-
             // combine bytes into ulong (8 byte) value
             value = data[0U];
             value = (value << 8) + data[1U];
             value = (value << 8) + data[2U];
             value = (value << 8) + data[3U];
 
+            MuteFrame = ((value >> 24) & 0x80U) == 0x80U;                       // Mute Frame Flag
+            LostFrame = ((value >> 8) & 0x01U) == 0x01U;                        // Lost Frame Flag
+            Type = (PacketType)((value >> 24) & 0x7FU);                         // Packet Type
+            ServiceOptions = (byte)((value >> 16) & 0xFFU);                     // Service Options
+            TSN = (byte)((value >> 9) & 0x7FU);                                 // Transmission Sequence Number
+            Interval = (byte)(value & 0xFFU);                                   // Interval
 
             return true;
         }
