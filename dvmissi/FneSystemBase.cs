@@ -21,6 +21,7 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -30,6 +31,10 @@ using Serilog;
 
 using dvmissi.FNE;
 using dvmissi.FNE.DMR;
+
+using SIPSorcery.Net;
+using SIPSorcery.SIP;
+using SIPSorcery.SIP.App;
 
 namespace dvmissi
 {
@@ -145,6 +150,11 @@ namespace dvmissi
         private Random rand;
         private uint txStreamId;
 
+        private SIPTransport sipTransport;
+        private SIPChannel sipListener;
+        
+        private ConcurrentDictionary<string, SIPUserAgent> calls = new ConcurrentDictionary<string, SIPUserAgent>();
+
         /*
         ** Properties
         */
@@ -259,6 +269,8 @@ namespace dvmissi
                         break;
                 }
             };
+
+            sipTransport = new SIPTransport();
         }
 
         /// <summary>
@@ -268,6 +280,138 @@ namespace dvmissi
         {
             if (!fne.IsStarted)
                 fne.Start();
+
+            // initialize SIP transport
+            sipListener = new SIPUDPChannel(new IPEndPoint(IPAddress.Any, Program.Configuration.SipPort));
+            sipTransport.AddSIPChannel(sipListener);
+
+            sipTransport.SIPTransportRequestReceived += SipTransport_SIPTransportRequestReceived;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ua"></param>
+        /// <param name="dst"></param>
+        /// <returns></returns>
+        private RTPSession CreateRTPSession(SIPUserAgent ua, string dst)
+        {
+            RTPSession session = new RTPSession(false, false, false);
+            session.AcceptRtpFromAny = true; // hmmm....
+
+            session.OnRtpPacketReceived += (ep, type, rtp) => OnRtpPacketReceived(ua, type, rtp);
+            session.OnTimeout += (mediaType) =>
+            {
+                if (ua?.Dialogue != null)
+                    Log.Logger.Warning($"RTP timeout on call with {ua.Dialogue.RemoteTarget}, hanging up.");
+                else
+                    Log.Logger.Warning($"RTP timeout on incomplete call, closing RTP session.");
+                ua.Hangup();
+            };
+
+            return session;
+        }
+
+        /// <summary>
+        /// Handler for RTP packet requests.
+        /// </summary>
+        /// <param name="ua">The SIP user agent associated with the RTP session.</param>
+        /// <param name="type">The media type of the RTP packet (audio or video).</param>
+        /// <param name="rtpPacket">The RTP packet received from the remote party.</param>
+        private void OnRtpPacketReceived(SIPUserAgent ua, SDPMediaTypesEnum type, RTPPacket rtpPacket)
+        {
+            // TODO TODO TODO
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private async void CallRemote()
+        {
+            SIPUserAgent ua = new SIPUserAgent(sipTransport, null);
+            ua.OnCallHungup += OnHangup;
+
+            RTPSession rtpSession = CreateRTPSession(ua, null);
+            var callResult = await ua.Call($"sip:CHANGEME@{Program.Configuration.RemoteIssiAddress}:{Program.Configuration.RemoteSipPort}", null, null, rtpSession);
+
+            if (callResult)
+            {
+                await rtpSession.Start();
+                calls.TryAdd(ua.Dialogue.CallId, ua);
+            }
+        }
+
+        /// <summary>
+        /// Handler for incoming SIP requests.
+        /// </summary>
+        /// <param name="localSIPEndPoint"></param>
+        /// <param name="remoteEndPoint"></param>
+        /// <param name="sipRequest"></param>
+        /// <returns></returns>
+        private async Task SipTransport_SIPTransportRequestReceived(SIPEndPoint localSIPEndPoint, SIPEndPoint remoteEndPoint, SIPRequest sipRequest)
+        {
+            try
+            {
+                switch (sipRequest.Method)
+                {
+                    case SIPMethodsEnum.BYE:
+                        {
+                            SIPResponse byeResp = SIPResponse.GetResponse(sipRequest, SIPResponseStatusCodesEnum.CallLegTransactionDoesNotExist, null);
+                            await sipTransport.SendResponseAsync(byeResp);
+                        }
+                        break;
+                    case SIPMethodsEnum.INVITE:
+                        {
+                            SIPUserAgent ua = new SIPUserAgent(sipTransport, null);
+                            ua.OnCallHungup += OnHangup;
+
+                            // answer call
+                            SIPServerUserAgent sua = ua.AcceptCall(sipRequest);
+                            RTPSession rtpSession = CreateRTPSession(ua, sipRequest.URI.User);
+                            await ua.Answer(sua, rtpSession);
+                            if (ua.IsCallActive)
+                            {
+                                await rtpSession.Start();
+                                calls.TryAdd(ua.Dialogue.CallId, ua);
+                            }
+                        }
+                        break;
+                    case SIPMethodsEnum.OPTIONS:
+                        {
+                            SIPResponse optResp = SIPResponse.GetResponse(sipRequest, SIPResponseStatusCodesEnum.Ok, null);
+                            await sipTransport.SendResponseAsync(optResp);
+                        }
+                        break;
+
+                    default:
+                        Log.Logger.Error($"SIP {sipRequest.Method} request received but no processing has been set up for it, rejecting.");
+                        break;
+                }
+            }
+            catch (NotImplementedException)
+            {
+                Log.Logger.Error($"{sipRequest.Method} request processing not implemented for {sipRequest.URI.ToParameterlessString()} from {remoteEndPoint}.");
+
+                SIPResponse notImplResponse = SIPResponse.GetResponse(sipRequest, SIPResponseStatusCodesEnum.NotImplemented, null);
+                await sipTransport.SendResponseAsync(notImplResponse);
+            }
+        }
+
+        /// <summary>
+        /// Remove call from the active calls list.
+        /// </summary>
+        /// <param name="dialogue">The dialogue that was hungup.</param>
+        private void OnHangup(SIPDialogue dialogue)
+        {
+            if (dialogue != null)
+            {
+                string callId = dialogue.CallId;
+                if (calls.ContainsKey(callId))
+                {
+                    if (calls.TryRemove(callId, out var ua))
+                        ua.Close();
+                }
+            }
         }
 
         /// <summary>
@@ -277,6 +421,13 @@ namespace dvmissi
         {
             if (fne.IsStarted)
                 fne.Stop();
+
+            sipTransport.RemoveSIPChannel(sipListener);
+            if (sipListener != null)
+            {
+                sipListener.Close();
+                sipListener.Dispose();
+            }
         }
 
         /// <summary>

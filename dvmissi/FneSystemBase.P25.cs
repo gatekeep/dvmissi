@@ -78,12 +78,10 @@ namespace dvmissi
         /// Creates an P25 frame message header.
         /// </summary>
         /// <param name="duid"></param>
-        /// <param name="data"></param>
-        private void CreateP25MessageHdr(byte duid, ref byte[] data)
+        /// <param name="srcId"></param>
+        /// <param name="dstId"></param>
+        private void CreateP25MessageHdr(byte duid, uint srcId, uint dstId, ref byte[] data)
         {
-            uint srcId = (uint)Program.Configuration.SourceId;
-            uint dstId = (uint)Program.Configuration.DestinationId;
-
             FneUtils.StringToBytes(Constants.TAG_P25_DATA, data, 0, Constants.TAG_P25_DATA.Length);
 
             data[4U] = P25Defines.LC_GROUP;                                                 // LCO
@@ -113,14 +111,16 @@ namespace dvmissi
         /// <summary>
         /// Helper to send a P25 TDU message.
         /// </summary>
+        /// <param name="srcId"></param>
+        /// <param name="dstId"></param>
         /// <param name="grantDemand"></param>
-        private void SendP25TDU(bool grantDemand = false)
+        private void SendP25TDU(uint srcId, uint dstId, bool grantDemand = false)
         {
             FnePeer peer = (FnePeer)fne;
             ushort pktSeq = peer.pktSeq(true);
 
             byte[] payload = new byte[200];
-            CreateP25MessageHdr((byte)P25DUID.TDU, ref payload);
+            CreateP25MessageHdr((byte)P25DUID.TDU, srcId, dstId, ref payload);
             payload[23U] = P25_MSG_HDR_SIZE;
 
             // if this TDU is demanding a grant, set the grant demand control bit
@@ -135,9 +135,11 @@ namespace dvmissi
         /// </summary>
         /// <param name="data"></param>
         /// <param name="offset"></param>
+        /// <param name="srcId"></param>
+        /// <param name="dstId"></param>
         /// <param name="imbe"></param>
         /// <param name="frameType"></param>
-        private void EncodeLDU1(ref byte[] data, int offset, byte[] imbe, byte frameType)
+        private void EncodeLDU1(ref byte[] data, int offset, uint srcId, uint dstId, byte[] imbe, byte frameType)
         {
             if (data == null)
                 throw new ArgumentNullException("data");
@@ -182,9 +184,6 @@ namespace dvmissi
             byte[] dfsiFrame = new byte[frameLength];
 
             dfsiFrame[0U] = frameType;                                                      // Frame Type
-
-            uint dstId = (uint)Program.Configuration.DestinationId;
-            uint srcId = (uint)Program.Configuration.SourceId;
 
             // different frame types mean different things
             switch (frameType)
@@ -279,46 +278,48 @@ namespace dvmissi
         /// Creates an P25 LDU1 frame message.
         /// </summary>
         /// <param name="data"></param>
-        private void CreateP25LDU1Message(ref byte[] data)
+        /// <param name="srcId"></param>
+        /// <param name="dstId"></param>
+        private void CreateP25LDU1Message(ref byte[] data, uint srcId, uint dstId)
         {
             // pack DFSI data
             int count = P25_MSG_HDR_SIZE;
             byte[] imbe = new byte[IMBE_BUF_LEN];
 
             Buffer.BlockCopy(netLDU1, 10, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 24, imbe, P25DFSI.P25_DFSI_LDU1_VOICE1);
+            EncodeLDU1(ref data, 24, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE1);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE1_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 26, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 46, imbe, P25DFSI.P25_DFSI_LDU1_VOICE2);
+            EncodeLDU1(ref data, 46, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE2);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE2_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 55, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 60, imbe, P25DFSI.P25_DFSI_LDU1_VOICE3);
+            EncodeLDU1(ref data, 60, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE3);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE3_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 80, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 77, imbe, P25DFSI.P25_DFSI_LDU1_VOICE4);
+            EncodeLDU1(ref data, 77, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE4);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE4_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 105, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 94, imbe, P25DFSI.P25_DFSI_LDU1_VOICE5);
+            EncodeLDU1(ref data, 94, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE5);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE5_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 130, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 111, imbe, P25DFSI.P25_DFSI_LDU1_VOICE6);
+            EncodeLDU1(ref data, 111, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE6);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE6_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 155, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 128, imbe, P25DFSI.P25_DFSI_LDU1_VOICE7);
+            EncodeLDU1(ref data, 128, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE7);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE7_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 180, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 145, imbe, P25DFSI.P25_DFSI_LDU1_VOICE8);
+            EncodeLDU1(ref data, 145, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE8);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE8_FRAME_LENGTH_BYTES;
 
             Buffer.BlockCopy(netLDU1, 204, imbe, 0, IMBE_BUF_LEN);
-            EncodeLDU1(ref data, 162, imbe, P25DFSI.P25_DFSI_LDU1_VOICE9);
+            EncodeLDU1(ref data, 162, srcId, dstId, imbe, P25DFSI.P25_DFSI_LDU1_VOICE9);
             count += (int)P25DFSI.P25_DFSI_LDU1_VOICE9_FRAME_LENGTH_BYTES;
 
             data[23U] = (byte)count;
@@ -539,10 +540,6 @@ namespace dvmissi
                     Log.Logger.Warning($"({SystemName}) P25D: Received call from SRC_ID {e.SrcId}? Dropping call e.Data.");
                     return;
                 }
-
-                // ensure destination ID matches
-                if (e.DstId != Program.Configuration.DestinationId)
-                    return;
 
                 // is this a new call stream?
                 if (e.StreamId != status[P25_FIXED_SLOT].RxStreamId && ((e.DUID != P25DUID.TDU) && (e.DUID != P25DUID.TDULC)))

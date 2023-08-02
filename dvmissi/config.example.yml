@@ -20,15 +20,13 @@ port: 62031
 # FNE access password.
 passphrase: RPT1234
 
-# ISSI Hostname/IP address of FNE master to connect to.
-issiAddress: 127.0.0.1
-# ISSI Port number to connect to.
-issiPort: 12345
+# Home RFSS SIP Port number.
+sipPort: 5060
 
-# Source "Radio ID" for transmitted audio frames
-sourceId: 1234567
-# Talkgroup ID for transmitted/received audio frames
-destinationId: 1
+# Remote RFSS ISSI Hostname/IP address of FNE master to connect to.
+remoteIssiAddress: 127.0.0.1
+# Remote RFSS ISSI SIP Port number to connect to.
+remoteSipPort: 5060
 
 #
 # Logging Configuration

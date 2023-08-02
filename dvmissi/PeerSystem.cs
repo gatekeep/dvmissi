@@ -79,8 +79,9 @@ namespace dvmissi
             Log.Logger.Information($"    Peer ID: {Program.Configuration.PeerId}");
             Log.Logger.Information($"    Master Addresss: {Program.Configuration.Address}");
             Log.Logger.Information($"    Master Port: {Program.Configuration.Port}");
-            Log.Logger.Information($"    Source Radio ID: {Program.Configuration.SourceId}");
-            Log.Logger.Information($"    Destination ID: {Program.Configuration.DestinationId}");
+            Log.Logger.Information($"    Home SIP Port: {Program.Configuration.SipPort}");
+            Log.Logger.Information($"    Remote ISSI Addresss: {Program.Configuration.RemoteIssiAddress}");
+            Log.Logger.Information($"    Remote ISSI SIP Port: {Program.Configuration.RemoteSipPort}");
 
             FnePeer peer = new FnePeer(Program.Configuration.Name, Program.Configuration.PeerId, endpoint);
 

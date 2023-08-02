@@ -25,6 +25,8 @@ using System.Collections.Generic;
 
 using dvmissi.FNE;
 
+using SIPSorcery.SIP;
+
 namespace dvmissi
 {
     /// <summary>
@@ -94,22 +96,16 @@ namespace dvmissi
         /// <summary>
         /// 
         /// </summary>
-        public string IssiAddress;
-        /// <summary>
-        /// 
-        /// </summary>
-        public int IssiPort;
-
+        public int SipPort = SIPConstants.DEFAULT_SIP_PORT;
 
         /// <summary>
         /// 
         /// </summary>
-        public int SourceId;
-
+        public string RemoteIssiAddress;
         /// <summary>
         /// 
         /// </summary>
-        public int DestinationId;
+        public int RemoteSipPort;
 
         /*
         ** Methods
