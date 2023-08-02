@@ -78,6 +78,7 @@ namespace dvmissi.ISSI.RTP
         /*
         ** Methods
         */
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PTTControl"/> class.
         /// </summary>

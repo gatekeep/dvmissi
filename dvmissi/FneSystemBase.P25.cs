@@ -606,20 +606,19 @@ namespace dvmissi
                 payload.FullRateISSIHeader = new FullRateISSIHeader();
                 payload.FullRateISSIHeader.VoiceBlockBundling = 3;
 
-                byte[] imbe = new byte[IMBE_BUF_LEN];
-                Buffer.BlockCopy(ldu, frame1, imbe, 0, IMBE_BUF_LEN);
                 FullRateVoice frame1Voice = new FullRateVoice();
-                frame1Voice.SetIMBE(imbe);
+                frame1Voice.IMBE = new byte[IMBE_BUF_LEN];
+                Buffer.BlockCopy(ldu, frame1, frame1Voice.IMBE, 0, IMBE_BUF_LEN);
                 payload.FullRateVoiceBlocks.Add(frame1Voice);
                 
-                Buffer.BlockCopy(ldu, frame2, imbe, 0, IMBE_BUF_LEN);
                 FullRateVoice frame2Voice = new FullRateVoice();
-                frame2Voice.SetIMBE(imbe);
+                frame2Voice.IMBE = new byte[IMBE_BUF_LEN];
+                Buffer.BlockCopy(ldu, frame2, frame2Voice.IMBE, 0, IMBE_BUF_LEN);
                 payload.FullRateVoiceBlocks.Add(frame2Voice);
 
-                Buffer.BlockCopy(ldu, frame3, imbe, 0, IMBE_BUF_LEN);
                 FullRateVoice frame3Voice = new FullRateVoice();
-                frame3Voice.SetIMBE(imbe);
+                frame3Voice.IMBE = new byte[IMBE_BUF_LEN];
+                Buffer.BlockCopy(ldu, frame3, frame3Voice.IMBE, 0, IMBE_BUF_LEN);
                 payload.FullRateVoiceBlocks.Add(frame3Voice);
 
                 byte[] buffer = new byte[payload.CalculateSize()];

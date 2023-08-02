@@ -114,6 +114,7 @@ namespace dvmissi.ISSI.RTP
         /*
         ** Methods
         */
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ISSIPacketType"/> class.
         /// </summary>
