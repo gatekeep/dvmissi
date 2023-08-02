@@ -81,7 +81,7 @@ namespace dvmissi.ISSI.RTP
         /// Initializes a new instance of the <see cref="ControlOctet"/> class.
         /// </summary>
         /// <param name="data"></param>
-        public ControlOctet(byte[] data) : this()
+        public ControlOctet(byte data) : this()
         {
             Decode(data);
         }
@@ -91,14 +91,11 @@ namespace dvmissi.ISSI.RTP
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public bool Decode(byte[] data)
+        public bool Decode(byte data)
         {
-            if (data == null)
-                return false;
-
-            Signal = (data[0] & 0x07) == 0x07;                                  // Signal Flag
-            Compact = (data[0] & 0x06) == 0x06;                                 // Compact Flag
-            BlockHeaderCount = (byte)(data[0] & 0x3F);                          // Block Header Count
+            Signal = (data & 0x07) == 0x07;                                     // Signal Flag
+            Compact = (data & 0x06) == 0x06;                                    // Compact Flag
+            BlockHeaderCount = (byte)(data & 0x3F);                             // Block Header Count
 
             return true;
         }
@@ -107,12 +104,9 @@ namespace dvmissi.ISSI.RTP
         /// Encode a block.
         /// </summary>
         /// <param name="data"></param>
-        public void Encode(ref byte[] data)
+        public void Encode(ref byte data)
         {
-            if (data == null)
-                return;
-
-            data[0] = (byte)((Signal ? 0x07U : 0x00U) +                         // Signal Flag
+            data = (byte)((Signal ? 0x07U : 0x00U) +                            // Signal Flag
                 (Compact ? 0x06U : 0x00U) +                                     // Control Flag
                 (BlockHeaderCount & 0x3F));
         }

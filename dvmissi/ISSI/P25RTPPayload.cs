@@ -133,6 +133,7 @@ namespace dvmissi.ISSI
         /*
         ** Methods
         */
+
         /// <summary>
         /// Initializes a new instance of the <see cref="P25RTPPayload"/> class.
         /// </summary>
@@ -145,6 +146,13 @@ namespace dvmissi.ISSI
             PTT = null;
             FullRateISSIHeader = null;
             FullRateVoiceBlocks = new List<FullRateVoice>();
+        }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="P25RTPPayload"/> class.
+        /// </summary>
+        public P25RTPPayload(byte[] data) : this()
+        {
+            Decode(data);
         }
 
         /// <summary>
@@ -160,10 +168,7 @@ namespace dvmissi.ISSI
             int offs = 1;
 
             // decode control block
-            byte[] control = new byte[1];
-            control[0] = data[0];
-
-            Control = new ControlOctet(control);
+            Control = new ControlOctet(data[0]);
 
             // decode block headers
             int blockHeaderCount = Control.BlockHeaderCount;
@@ -355,10 +360,12 @@ namespace dvmissi.ISSI
                 return;
             }
 
+            byte[] buffer = null;
+
             // encode control octet
-            byte[] buffer = new byte[ControlOctet.LENGTH];
-            Control.Encode(ref buffer);
-            Buffer.BlockCopy(buffer, 0, data, 0, ControlOctet.LENGTH);
+            byte controlByte = 0;
+            Control.Encode(ref controlByte);
+            data[0] = controlByte;
             offs += ControlOctet.LENGTH;
 
             // encode block headers
