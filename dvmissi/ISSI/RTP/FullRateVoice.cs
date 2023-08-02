@@ -322,6 +322,7 @@ namespace dvmissi.ISSI.RTP
             value = (ulong)(TotalErrors);                                       // Total Errors
             value = (value << 13) +
                 (ulong)(SuperFrameCnt & 0x03U);                                 // Superframe Count
+            value = (value << 2);
             value |= (MuteFrame ? 0x200U : 0x00U);                              // Mute Frame Flag
             value |= (LostFrame ? 0x100U : 0x00U);                              // Log Frame Flag
 
