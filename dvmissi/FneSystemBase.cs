@@ -142,8 +142,6 @@ namespace dvmissi
 
         protected FneBase fne;
 
-        private bool callInProgress = false;
-
         private SlotStatus[] status;
 
         private Random rand;
@@ -394,6 +392,7 @@ namespace dvmissi
             descriptor.From = sipFromTo;
             descriptor.To = sipFromTo;
             descriptor.RouteSet = sipRoute;
+            descriptor.ContentType = $"application/{SIP_ISSI_CONTENT_TYPE}";
 
             bool callResult = await ua.Call(descriptor, rtpSession);
             if (callResult)
@@ -433,11 +432,12 @@ namespace dvmissi
 
                             // answer call
                             SIPServerUserAgent sua = ua.AcceptCall(sipRequest);
-                            RTPSession rtpSession = CreateRTPSession(ua, sipRequest.URI.User);
-                            await ua.Answer(sua, rtpSession);
+                            RTPSession session = CreateRTPSession(ua, sipRequest.URI.User);
+                            session.OnRtpPacketReceived += (ep, type, rtp) => OnRtpPacketReceived(ua, type, rtp);
+                            await ua.Answer(sua, session);
                             if (ua.IsCallActive)
                             {
-                                await rtpSession.Start();
+                                await session.Start();
                                 calls.TryAdd(ua.Dialogue.CallId, ua);
                             }
                         }
