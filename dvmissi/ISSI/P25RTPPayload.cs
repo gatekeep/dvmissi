@@ -31,7 +31,7 @@ namespace dvmissi.ISSI
 {
     /// <summary>
     /// This class implements a P25 payload which encapsulates one or more P25 block
-    /// objects.The various forms of ISSI RTP Packets are shown below.
+    /// objects. The various forms of ISSI RTP Packets are shown below.
     /// 
     ///  +-+-+-+-+-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+
     ///  |  RTP Hdr  | |  RTP Hdr  | |  RTP Hdr  | |  RTP Hdr  | |  RTP Hdr  |
@@ -55,12 +55,12 @@ namespace dvmissi.ISSI
     ///  |Opt Manufac| |Opt Manufac| | Opt IMBE  | |Opt Manufac| |Opt Manufac|
     ///  |  Specific | |  Specific | +-+-+-+-+-+-+ |  Specific | |  Specific |
     ///  +-+-+-+-+-+-+ +-+-+-+-+-+-+ | Opt IMBE  | +-+-+-+-+-+-+ +-+-+-+-+-+-+
-    ///                              +-+-+-+-+-+-+  
-    ///                              | Opt IMBE  |   
-    ///                              +-+-+-+-+-+-+ 
-    ///                              |Opt Manufac|   
+    ///                              +-+-+-+-+-+-+
+    ///                              | Opt IMBE  |
+    ///                              +-+-+-+-+-+-+
+    ///                              |Opt Manufac|
     ///                              |  Specific |
-    ///                              +-+-+-+-+-+-+ 
+    ///                              +-+-+-+-+-+-+
     ///                                    :
     ///                                    :
     ///                              +-+-+-+-+-+-+
@@ -230,6 +230,81 @@ namespace dvmissi.ISSI
         }
 
         /// <summary>
+        /// Calculate block size.
+        /// </summary>
+        public int CalculateSize()
+        {
+            int totalLength = 0;
+
+            int blockHeaderCount = Control.BlockHeaderCount;
+            if (BlockHeaders.Count - 1 != blockHeaderCount)
+            {
+                Log.Logger.Error($"Number of block headers in control octect do not match number of block headers in P25 payload. {BlockHeaders.Count - 1} != {blockHeaderCount}");
+                return -1;
+            }
+
+            // ensure we have block headers
+            if (BlockHeaders.Count == 0)
+            {
+                Log.Logger.Error($"P25 packet incomplete. No block headers.");
+                return -1;
+            }
+
+            // ensure we have a ISSI packet type
+            if (PacketType == null)
+            {
+                Log.Logger.Error($"P25 packet incomplete. No packet type.");
+                return -1;
+            }
+
+            // ensure we have a PTT control block in certain situations
+            if (PTT == null &&
+                (PacketType.Type == RTP.PacketType.PTT_TRANSMIT_REQ ||
+                 PacketType.Type == RTP.PacketType.PTT_TRANSMIT_START ||
+                 PacketType.Type == RTP.PacketType.PTT_TRANSMIT_PROGRESS))
+            {
+                Log.Logger.Error($"P25 packet incomplete. No PTT control block.");
+                return -1;
+            }
+
+            // ensure we have the ISSI header in certain situations
+            if (FullRateISSIHeader == null &&
+                (PacketType.Type == RTP.PacketType.PTT_TRANSMIT_REQ ||
+                 PacketType.Type == RTP.PacketType.PTT_TRANSMIT_PROGRESS))
+            {
+                Log.Logger.Error($"P25 packet incomplete. No ISSI header block for PTT request or progress frames.");
+                return -1;
+            }
+
+            // encode control octet
+            totalLength += ControlOctet.LENGTH;
+
+            // encode block headers
+            foreach (BlockHeader header in BlockHeaders)
+                totalLength += BlockHeader.LENGTH;
+
+            // encode ISSI packet type block
+            totalLength += ISSIPacketType.LENGTH;
+
+            // encode PTT control block
+            if (PTT != null)
+                totalLength += PTTControl.LENGTH;
+
+            // encode ISSI header
+            if (FullRateISSIHeader != null)
+                totalLength += FullRateISSIHeader.LENGTH;
+
+            // encode voice frames
+            if (FullRateVoiceBlocks.Count > 0)
+            {
+                foreach (FullRateVoice voice in FullRateVoiceBlocks)
+                    totalLength += voice.Size();
+            }
+
+            return totalLength;
+        }
+
+        /// <summary>
         /// Encode a block.
         /// </summary>
         /// <param name="data"></param>
@@ -287,10 +362,7 @@ namespace dvmissi.ISSI
             offs += ControlOctet.LENGTH;
 
             // encode block headers
-            uint blockBufLen = 0;
-            for (int i = 0; i < blockHeaderCount; i++)
-                blockBufLen += BlockHeaders[i].BlockLength;
-
+            uint blockBufLen = (uint)(blockHeaderCount * BlockHeader.LENGTH);
             buffer = new byte[blockBufLen];
             int blockOffs = 0;
             foreach (BlockHeader header in BlockHeaders)

@@ -128,18 +128,17 @@ namespace dvmissi
     {
         private const int P25_FIXED_SLOT = 2;
 
-        public const int SAMPLE_RATE = 8000;
-        public const int BITS_PER_SECOND = 16;
+        private const string SIP_ISSI_P25DR = "p25dr";
 
-        private const int MBE_SAMPLES_LENGTH = 160;
+        private const string SIP_ISSI_P25_GROUP_CALL = "TIA-P25-Groupcall";
+        private const string SIP_ISSI_P25_U2U_CALLING = "TIA-P25-U2Uorig";
+        private const string SIP_ISSI_P25_U2U_CALLED = "TIA-P25-U2Udest";
+        private const string SIP_ISSI_P25_RSSI_CAP = "TIA-P25-RFSSCapability";
 
-        private const int AUDIO_BUFFER_MS = 20;
-        private const int AUDIO_NO_BUFFERS = 2;
-        private const int AFSK_AUDIO_BUFFER_MS = 60;
-        private const int AFSK_AUDIO_NO_BUFFERS = 4;
+        private const string SIP_ISSI_CONTENT_TYPE = "x-tia-p25-issi";
 
-        private const int TX_MODE_DMR = 1;
-        private const int TX_MODE_P25 = 2;
+        private const string SIP_ISSI_P25_SU = "TIA-P25-SU";
+        private const string SIP_ISSI_P25_SG = "TIA-P25-SG";
 
         protected FneBase fne;
 
@@ -154,6 +153,10 @@ namespace dvmissi
         private SIPChannel sipListener;
         
         private ConcurrentDictionary<string, SIPUserAgent> calls = new ConcurrentDictionary<string, SIPUserAgent>();
+
+        private ConcurrentDictionary<string, uint> callIdToStreamId = new ConcurrentDictionary<string, uint>();
+        private ConcurrentDictionary<uint, SIPUserAgent> outgoingCalls = new ConcurrentDictionary<uint, SIPUserAgent>();
+        private ConcurrentDictionary<uint, RTPSession> outgoingRtp = new ConcurrentDictionary<uint, RTPSession>();
 
         /*
         ** Properties
@@ -326,18 +329,81 @@ namespace dvmissi
         /// <summary>
         /// 
         /// </summary>
-        private async void CallRemote()
+        /// <param name="sysId"></param>
+        /// <param name="netId"></param>
+        /// <returns></returns>
+        private string GenerateISSIDomain(uint sysId, uint netId)
+        {
+            // bryanb: the TIA-102 engineers were taking the good stuff when they came up with this shit...
+            string systemName = $"{sysId.ToString("X3")}.{netId.ToString("X5")}.";
+            return $"{systemName}{SIP_ISSI_P25DR}";
+        }
+
+        /// <summary>
+        /// Helper to generate a ISSI SIP INVITE route header.
+        /// </summary>
+        /// <param name="sysId"></param>
+        /// <param name="netId"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
+        private string GenerateISSIInviteRoute(uint sysId, uint netId, bool group = true)
+        {
+            // bryanb: the TIA-102 engineers were taking the good stuff when they came up with this shit...
+            string sipRoute = $"sip:{SIP_ISSI_P25_GROUP_CALL}@{GenerateISSIDomain(sysId, netId)}";
+            if (!group)
+                sipRoute = $"sip:{SIP_ISSI_P25_U2U_CALLING}@{GenerateISSIDomain(sysId, netId)}";
+
+            return sipRoute;
+        }
+
+        /// <summary>
+        /// Helper to generate the ISSI SID From/To header.
+        /// </summary>
+        /// <param name="sysId"></param>
+        /// <param name="netId"></param>
+        /// <param name="dstId"></param>
+        /// <param name="group"></param>
+        /// <returns></returns>
+        private string GenerateISSISID(uint sysId, uint netId, uint dstId, bool group = true)
+        {
+            // bryanb: the TIA-102 engineers were taking the good stuff when they came up with this shit...
+            string sid = $"sip:{netId.ToString("X5")}{sysId.ToString("X3")}{dstId.ToString("X4")}@{SIP_ISSI_P25DR};user={SIP_ISSI_P25_SG}";
+            if (!group)
+                sid = $"sip:{netId.ToString("X5")}{sysId.ToString("X3")}{dstId.ToString("X6")}@{SIP_ISSI_P25DR};user={SIP_ISSI_P25_SU}";
+
+            return sid;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sysId"></param>
+        /// <param name="netId"></param>
+        /// <param name="dstId"></param>
+        /// <param name="group"></param>
+        private async void CallRemote(uint sysId, uint netId, uint dstId, bool group, uint streamId)
         {
             SIPUserAgent ua = new SIPUserAgent(sipTransport, null);
             ua.OnCallHungup += OnHangup;
 
-            RTPSession rtpSession = CreateRTPSession(ua, null);
-            var callResult = await ua.Call($"sip:CHANGEME@{Program.Configuration.RemoteIssiAddress}:{Program.Configuration.RemoteSipPort}", null, null, rtpSession);
+            string sipRoute = GenerateISSIInviteRoute(sysId, netId, group);
+            string sipFromTo = GenerateISSISID(sysId, netId, dstId, group);
 
+            RTPSession rtpSession = CreateRTPSession(ua, null);
+            SIPCallDescriptor descriptor = new SIPCallDescriptor($"sip:*@{Program.Configuration.RemoteIssiAddress}:{Program.Configuration.RemoteSipPort}", null);
+            descriptor.From = sipFromTo;
+            descriptor.To = sipFromTo;
+            descriptor.RouteSet = sipRoute;
+
+            bool callResult = await ua.Call(descriptor, rtpSession);
             if (callResult)
             {
                 await rtpSession.Start();
                 calls.TryAdd(ua.Dialogue.CallId, ua);
+
+                callIdToStreamId.TryAdd(ua.Dialogue.CallId, streamId);
+                outgoingCalls.TryAdd(streamId, ua);
+                outgoingRtp.TryAdd(streamId, rtpSession);
             }
         }
 
@@ -406,6 +472,16 @@ namespace dvmissi
             if (dialogue != null)
             {
                 string callId = dialogue.CallId;
+                uint streamId = 0U;
+                if (callIdToStreamId.ContainsKey(callId))
+                {
+                    streamId = callIdToStreamId[callId];
+                    if (outgoingRtp.ContainsKey(streamId))
+                        outgoingRtp.TryRemove(streamId, out _);
+                    if (outgoingCalls.ContainsKey(streamId))
+                        outgoingCalls.TryRemove(streamId, out _);
+                }
+
                 if (calls.ContainsKey(callId))
                 {
                     if (calls.TryRemove(callId, out var ua))

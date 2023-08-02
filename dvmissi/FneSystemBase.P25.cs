@@ -31,6 +31,9 @@ using Serilog;
 using dvmissi.FNE;
 using dvmissi.FNE.P25;
 
+using dvmissi.ISSI;
+using dvmissi.ISSI.RTP;
+
 namespace dvmissi
 {
     /// <summary>
@@ -38,6 +41,7 @@ namespace dvmissi
     /// </summary>
     public abstract partial class FneSystemBase
     {
+        private static DateTime start = DateTime.Now;
         private const int P25_MSG_HDR_SIZE = 24;
         private const int IMBE_BUF_LEN = 11;
 
@@ -517,6 +521,120 @@ namespace dvmissi
         }
 
         /// <summary>
+        /// Helper to send a ISSI P25 start frame.
+        /// </summary>
+        /// <param name="sysId"></param>
+        /// <param name="netId"></param>
+        /// <param name="e"></param>
+        private void P25StartPTT(uint sysId, uint netId, P25DataReceivedEvent e)
+        {
+            P25RTPPayload payload = new P25RTPPayload();
+            payload.Control = new ControlOctet();
+            payload.Control.Signal = true;
+
+            BlockHeader blockHeader = new BlockHeader();
+            blockHeader.Type = BlockType.RF_PTT_CONTROL_WORD;
+            payload.BlockHeaders.Add(blockHeader);
+
+            payload.PacketType = new ISSIPacketType();
+            payload.PacketType.Type = PacketType.PTT_TRANSMIT_START;
+
+            payload.PTT = new PTTControl();
+            payload.PTT.SysId = (ushort)sysId;
+            payload.PTT.WACN = (uint)netId;
+            payload.PTT.UnitID = e.SrcId;
+            payload.PTT.Priority = 4; // default to 4?
+
+            byte[] buffer = new byte[payload.CalculateSize()];
+            payload.Encode(ref buffer);
+
+            TimeSpan timeSinceStart = DateTime.Now - start;
+
+            uint ts = (uint)rand.Next(int.MinValue, int.MaxValue);
+            ulong microSeconds = (ulong)(timeSinceStart.Ticks * Constants.RtpGenericClockRate);
+
+            outgoingRtp[e.StreamId].SendRtpRaw(SIPSorcery.Net.SDPMediaTypesEnum.application, buffer, ts + (uint)(microSeconds / 1000000), 0, 100);
+        }
+
+        /// <summary>
+        /// Helper to decode and playback P25 IMBE frames as PCM audio.
+        /// </summary>
+        /// <param name="ldu"></param>
+        /// <param name="e"></param>
+        private void P25SendFrame(uint sysId, uint netId, byte[] ldu, P25DataReceivedEvent e)
+        {
+            // decode 9 IMBE codewords into PCM samples
+            for (int n = 0; n < 3; n++)
+            {
+                int frame1 = 0, frame2 = 0, frame3 = 0;
+                switch (n)
+                {
+                    case 0:
+                        frame1 = 10;
+                        frame2 = 26;
+                        frame3 = 55;
+                        break;
+                    case 1:
+                        frame1 = 80;
+                        frame2 = 105;
+                        frame3 = 130;
+                        break;
+                    case 2:
+                        frame1 = 155;
+                        frame2 = 180;
+                        frame3 = 204;
+                        break;
+                }
+
+                P25RTPPayload payload = new P25RTPPayload();
+                payload.Control = new ControlOctet();
+                payload.Control.Signal = true;
+
+                BlockHeader blockHeader = new BlockHeader();
+                blockHeader.Type = BlockType.FULL_RATE_VOICE;
+                payload.BlockHeaders.Add(blockHeader);
+
+                payload.PacketType = new ISSIPacketType();
+                payload.PacketType.Type = PacketType.PTT_TRANSMIT_PROGRESS;
+
+                payload.PTT = new PTTControl();
+                payload.PTT.SysId = (ushort)sysId;
+                payload.PTT.WACN = (uint)netId;
+                payload.PTT.UnitID = e.SrcId;
+                payload.PTT.Priority = 4; // default to 4?
+
+                payload.FullRateISSIHeader = new FullRateISSIHeader();
+                payload.FullRateISSIHeader.VoiceBlockBundling = 3;
+
+                byte[] imbe = new byte[IMBE_BUF_LEN];
+                Buffer.BlockCopy(ldu, frame1, imbe, 0, IMBE_BUF_LEN);
+                FullRateVoice frame1Voice = new FullRateVoice();
+                frame1Voice.SetIMBE(imbe);
+                payload.FullRateVoiceBlocks.Add(frame1Voice);
+                
+                Buffer.BlockCopy(ldu, frame2, imbe, 0, IMBE_BUF_LEN);
+                FullRateVoice frame2Voice = new FullRateVoice();
+                frame2Voice.SetIMBE(imbe);
+                payload.FullRateVoiceBlocks.Add(frame2Voice);
+
+                Buffer.BlockCopy(ldu, frame3, imbe, 0, IMBE_BUF_LEN);
+                FullRateVoice frame3Voice = new FullRateVoice();
+                frame3Voice.SetIMBE(imbe);
+                payload.FullRateVoiceBlocks.Add(frame3Voice);
+
+                byte[] buffer = new byte[payload.CalculateSize()];
+                payload.Encode(ref buffer);
+
+                TimeSpan timeSinceStart = DateTime.Now - start;
+
+                uint ts = (uint)rand.Next(int.MinValue, int.MaxValue);
+                ulong microSeconds = (ulong)(timeSinceStart.Ticks * Constants.RtpGenericClockRate);
+
+                outgoingRtp[e.StreamId].SendRtpRaw(SIPSorcery.Net.SDPMediaTypesEnum.application, buffer, ts + (uint)(microSeconds / 1000000), 0, 100);
+            }
+        }
+
+        /// <summary>
         /// Event handler used to process incoming P25 data.
         /// </summary>
         /// <param name="sender"></param>
@@ -527,6 +645,9 @@ namespace dvmissi
 
             if (e.DUID == P25DUID.HDU || e.DUID == P25DUID.TSDU || e.DUID == P25DUID.PDU)
                 return;
+
+            uint sysId = (uint)((e.Data[11U] << 8) | (e.Data[12U] << 0));
+            uint netId = FneUtils.Bytes3ToUInt32(e.Data, 16);
 
             byte len = e.Data[23];
             byte[] data = new byte[len];
@@ -547,6 +668,9 @@ namespace dvmissi
                     callInProgress = true;
                     status[P25_FIXED_SLOT].RxStart = pktTime;
                     Log.Logger.Information($"({SystemName}) P25D: Traffic *CALL START     * PEER {e.PeerId} SRC_ID {e.SrcId} TGID {e.DstId} [STREAM ID {e.StreamId}]");
+                    CallRemote(sysId, netId, e.DstId, true, e.StreamId);
+                    if (outgoingCalls.ContainsKey(e.StreamId))
+                        P25StartPTT(sysId, netId, e);
                 }
 
                 if (((e.DUID == P25DUID.TDU) || (e.DUID == P25DUID.TDULC)) && (status[P25_FIXED_SLOT].RxType != FrameType.TERMINATOR))
@@ -554,6 +678,8 @@ namespace dvmissi
                     callInProgress = false;
                     TimeSpan callDuration = pktTime - status[P25_FIXED_SLOT].RxStart;
                     Log.Logger.Information($"({SystemName}) P25D: Traffic *CALL END       * PEER {e.PeerId} SRC_ID {e.SrcId} TGID {e.DstId} DUR {callDuration} [STREAM ID {e.StreamId}]");
+                    if (outgoingCalls.ContainsKey(e.StreamId))
+                        outgoingCalls[e.StreamId].Hangup();
                 }
 
 
@@ -605,7 +731,8 @@ namespace dvmissi
                                 Buffer.BlockCopy(data, count, netLDU1, 200, 16);
                                 count += 16;
 
-                                // TODO TODO TODO
+                                // decode 9 IMBE codewords into PCM samples
+                                P25SendFrame(sysId, netId, netLDU1, e);
                             }
                         }
                         break;
@@ -654,7 +781,8 @@ namespace dvmissi
                                 Buffer.BlockCopy(data, count, netLDU2, 200, 16);
                                 count += 16;
 
-                                // TODO TODO TODO
+                                // decode 9 IMBE codewords into PCM samples
+                                P25SendFrame(sysId, netId, netLDU2, e);
                             }
                         }
                         break;
