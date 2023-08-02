@@ -47,6 +47,7 @@ namespace dvmissi.ISSI.RTP
     ///     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     public class FullRateVoice
     {
+        public const int LENGTH = 14;
         private const int IMBE_BUF_LEN = 11;
 
         /// <summary>
@@ -146,6 +147,18 @@ namespace dvmissi.ISSI.RTP
             MessageVectors = new ushort[8];
             for (int i = 0; i < 8; i++)
                 MessageVectors[i] = 0;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public int Size()
+        {
+            if (AdditionalFrameData != null)
+                return LENGTH + AdditionalFrameData.Length;
+            else
+                return LENGTH;
         }
 
         /// <summary>

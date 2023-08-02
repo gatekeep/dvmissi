@@ -328,7 +328,17 @@ namespace dvmissi.ISSI
                 offs += FullRateISSIHeader.LENGTH;
             }
 
-            // TODO TODO -- encode voice frames
+            // encode voice frames
+            if (FullRateVoiceBlocks.Count > 0)
+            {
+                foreach (FullRateVoice voice in FullRateVoiceBlocks)
+                {
+                    byte[] voiceBuf = new byte[voice.Size()];
+                    voice.Encode(ref voiceBuf);
+                    Buffer.BlockCopy(voiceBuf, 0, data, offs, voice.Size());
+                    offs += voice.Size();
+                }
+            }
         }
     } // public class P25RTPPayload
 } // namespace dvmissi.ISSI
