@@ -129,6 +129,8 @@ namespace dvmissi.FNE.P25
 
         public const byte P25_ALGO_UNENCRYPT = 0x80;
 
+        public const byte P25_MI_LENGTH = 9;
+
         // LDUx/TDULC Link Control Opcode(s)
         public const byte LC_GROUP = 0x00;                   // GRP VCH USER - Group Voice Channel User
         public const byte LC_GROUP_UPDT = 0x02;              // GRP VCH UPDT - Group Voice Channel Update

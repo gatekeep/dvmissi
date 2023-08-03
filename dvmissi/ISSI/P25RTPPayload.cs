@@ -130,6 +130,14 @@ namespace dvmissi.ISSI
             set;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public Dictionary<int, int> BlockHeaderToVoiceBlock
+        {
+            get;
+        }
+
         /*
         ** Methods
         */
@@ -146,6 +154,7 @@ namespace dvmissi.ISSI
             PTT = null;
             FullRateISSIHeader = null;
             FullRateVoiceBlocks = new List<FullRateVoice>();
+            BlockHeaderToVoiceBlock = new Dictionary<int, int>();
         }
         /// <summary>
         /// Initializes a new instance of the <see cref="P25RTPPayload"/> class.
@@ -183,8 +192,9 @@ namespace dvmissi.ISSI
             }
 
             // decode voice blocks
-            foreach (BlockHeader header in BlockHeaders)
+            for (int i = 0; i < blockHeaderCount; i++)
             {
+                BlockHeader header = BlockHeaders[i];
                 switch (header.Type)
                 {
                     case BlockType.PACKET_TYPE:
@@ -218,6 +228,7 @@ namespace dvmissi.ISSI
                             Buffer.BlockCopy(data, offs, buffer, 0, (int)header.BlockLength);
                             FullRateVoice voice = new FullRateVoice(data);
                             FullRateVoiceBlocks.Add(voice);
+                            BlockHeaderToVoiceBlock.Add(i, FullRateVoiceBlocks.Count - 1);
                             offs += (int)header.BlockLength;
                         }
                         break;
