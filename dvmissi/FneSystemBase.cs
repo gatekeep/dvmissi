@@ -39,89 +39,6 @@ using SIPSorcery.SIP.App;
 namespace dvmissi
 {
     /// <summary>
-    /// Represents the individual timeslot data status.
-    /// </summary>
-    public class SlotStatus
-    {
-        /// <summary>
-        /// Rx Start Time
-        /// </summary>
-        public DateTime RxStart = DateTime.Now;
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        public uint RxSeq = 0;
-        
-        /// <summary>
-        /// Rx RF Source
-        /// </summary>
-        public uint RxRFS = 0;
-        /// <summary>
-        /// Tx RF Source
-        /// </summary>
-        public uint TxRFS = 0;
-        
-        /// <summary>
-        /// Rx Stream ID
-        /// </summary>
-        public uint RxStreamId = 0;
-        /// <summary>
-        /// Tx Stream ID
-        /// </summary>
-        public uint TxStreamId = 0;
-        
-        /// <summary>
-        /// Rx TG ID
-        /// </summary>
-        public uint RxTGId = 0;
-        /// <summary>
-        /// Tx TG ID
-        /// </summary>
-        public uint TxTGId = 0;
-        /// <summary>
-        /// Tx Privacy TG ID
-        /// </summary>
-        public uint TxPITGId = 0;
-        
-        /// <summary>
-        /// Rx Time
-        /// </summary>
-        public DateTime RxTime = DateTime.Now;
-        /// <summary>
-        /// Tx Time
-        /// </summary>
-        public DateTime TxTime = DateTime.Now;
-        
-        /// <summary>
-        /// Rx Type
-        /// </summary>
-        public FrameType RxType = FrameType.TERMINATOR;
-        
-        /** DMR Data */
-        /// <summary>
-        /// Rx Link Control Header
-        /// </summary>
-        public LC DMR_RxLC = null;
-        /// <summary>
-        /// Rx Privacy Indicator Link Control Header
-        /// </summary>
-        public PrivacyLC DMR_RxPILC = null;
-        /// <summary>
-        /// Tx Link Control Header
-        /// </summary>
-        public LC DMR_TxHLC = null;
-        /// <summary>
-        /// Tx Privacy Link Control Header
-        /// </summary>
-        public PrivacyLC DMR_TxPILC = null;
-        /// <summary>
-        /// Tx Terminator Link Control
-        /// </summary>
-        public LC DMR_TxTLC = null;
-    } // public class SlotStatus
-
-    /// <summary>
     /// Implements a FNE system.
     /// </summary>
     public abstract partial class FneSystemBase
@@ -142,10 +59,11 @@ namespace dvmissi
 
         protected FneBase fne;
 
-        private SlotStatus[] status;
-
         private Random rand;
         private uint txStreamId;
+
+        private bool callInProgress = false;
+        private bool remoteCallInProgress = false;
 
         private SIPTransport sipTransport;
         private SIPChannel sipListener;
@@ -225,12 +143,6 @@ namespace dvmissi
             this.fne = fne;
 
             this.rand = new Random(Guid.NewGuid().GetHashCode());
-
-            // initialize slot statuses
-            this.status = new SlotStatus[3];
-            this.status[0] = new SlotStatus();  // DMR Slot 1
-            this.status[1] = new SlotStatus();  // DMR Slot 2
-            this.status[2] = new SlotStatus();  // P25
 
             // hook various FNE network callbacks
             this.fne.DMRDataValidate = DMRDataValidate;

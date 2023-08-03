@@ -41,6 +41,10 @@ namespace dvmissi
     /// </summary>
     public abstract partial class FneSystemBase
     {
+        public DateTime RxStart = DateTime.Now;
+        public uint RxStreamId = 0;
+        public FrameType RxType = FrameType.TERMINATOR;
+
         private static DateTime start = DateTime.Now;
         private const int P25_MSG_HDR_SIZE = 24;
         private const int IMBE_BUF_LEN = 11;
@@ -661,19 +665,24 @@ namespace dvmissi
                     return;
                 }
 
+                if (remoteCallInProgress)
+                    return;
+
                 // is this a new call stream?
-                if (e.StreamId != status[P25_FIXED_SLOT].RxStreamId && ((e.DUID != P25DUID.TDU) && (e.DUID != P25DUID.TDULC)))
+                if (e.StreamId != RxStreamId && ((e.DUID != P25DUID.TDU) && (e.DUID != P25DUID.TDULC)))
                 {
-                    status[P25_FIXED_SLOT].RxStart = pktTime;
+                    callInProgress = true;
+                    RxStart = pktTime;
                     Log.Logger.Information($"({SystemName}) P25D: Traffic *CALL START     * PEER {e.PeerId} SRC_ID {e.SrcId} TGID {e.DstId} [STREAM ID {e.StreamId}]");
                     CallRemote(sysId, netId, e.DstId, true, e.StreamId);
                     if (outgoingCalls.ContainsKey(e.StreamId))
                         P25StartPTT(sysId, netId, e);
                 }
 
-                if (((e.DUID == P25DUID.TDU) || (e.DUID == P25DUID.TDULC)) && (status[P25_FIXED_SLOT].RxType != FrameType.TERMINATOR))
+                if (((e.DUID == P25DUID.TDU) || (e.DUID == P25DUID.TDULC)) && (RxType != FrameType.TERMINATOR))
                 {
-                    TimeSpan callDuration = pktTime - status[P25_FIXED_SLOT].RxStart;
+                    callInProgress = false;
+                    TimeSpan callDuration = pktTime - RxStart;
                     Log.Logger.Information($"({SystemName}) P25D: Traffic *CALL END       * PEER {e.PeerId} SRC_ID {e.SrcId} TGID {e.DstId} DUR {callDuration} [STREAM ID {e.StreamId}]");
                     if (outgoingCalls.ContainsKey(e.StreamId))
                         outgoingCalls[e.StreamId].Hangup();
@@ -785,11 +794,8 @@ namespace dvmissi
                         break;
                 }
 
-                status[P25_FIXED_SLOT].RxRFS = e.SrcId;
-                status[P25_FIXED_SLOT].RxType = e.FrameType;
-                status[P25_FIXED_SLOT].RxTGId = e.DstId;
-                status[P25_FIXED_SLOT].RxTime = pktTime;
-                status[P25_FIXED_SLOT].RxStreamId = e.StreamId;
+                RxType = e.FrameType;
+                RxStreamId = e.StreamId;
             }
             else
                 Log.Logger.Warning($"({SystemName}) P25D: ISSI does not support private calls.");
