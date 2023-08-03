@@ -265,6 +265,9 @@ namespace dvmissi
                 }
             };
 
+            netLDU1 = new byte[9 * 25];
+            netLDU2 = new byte[9 * 25];
+
             sipTransport = new SIPTransport();
         }
 
@@ -315,6 +318,9 @@ namespace dvmissi
         /// <param name="rtpPacket">The RTP packet received from the remote party.</param>
         private void OnRtpPacketReceived(SIPUserAgent ua, SDPMediaTypesEnum type, RTPPacket rtpPacket)
         {
+            if (callInProgress)
+                return;
+
             P25RTPPayload payload = new P25RTPPayload(rtpPacket.GetBytes());
             for (int i = 0; i < payload.BlockHeaders.Count; i++)
             {
