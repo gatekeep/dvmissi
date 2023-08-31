@@ -29,9 +29,9 @@ using System.Threading.Tasks;
 
 using Serilog;
 
-using dvmissi.FNE;
-using dvmissi.FNE.DMR;
-using dvmissi.FNE.P25;
+using fnecore;
+using fnecore.DMR;
+using fnecore.P25;
 
 using dvmissi.ISSI;
 using dvmissi.ISSI.RTP;

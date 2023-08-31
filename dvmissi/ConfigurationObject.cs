@@ -23,7 +23,7 @@
 using System;
 using System.Collections.Generic;
 
-using dvmissi.FNE;
+using fnecore;
 
 using SIPSorcery.SIP;
 

@@ -22,7 +22,7 @@
 
 using System;
 
-using dvmissi.FNE.P25;
+using fnecore.P25;
 
 namespace dvmissi.ISSI.RTP
 {

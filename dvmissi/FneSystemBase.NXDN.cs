@@ -26,8 +26,8 @@ using System.Threading.Tasks;
 
 using Serilog;
 
-using dvmissi.FNE;
-using dvmissi.FNE.NXDN;
+using fnecore;
+using fnecore.NXDN;
 
 namespace dvmissi
 {
@@ -50,8 +50,9 @@ namespace dvmissi
         /// <param name="messageType">NXDN Message Type</param>
         /// <param name="frameType">Frame Type</param>
         /// <param name="streamId">Stream ID</param>
+        /// <param name="message">Raw message data</param>
         /// <returns>True, if data stream is valid, otherwise false.</returns>
-        protected virtual bool NXDNDataValidate(uint peerId, uint srcId, uint dstId, CallType callType, NXDNMessageType messageType, FrameType frameType, uint streamId)
+        protected virtual bool NXDNDataValidate(uint peerId, uint srcId, uint dstId, CallType callType, NXDNMessageType messageType, FrameType frameType, uint streamId, byte[] message)
         {
             return true;
         }
